@@ -1,10 +1,10 @@
 <?php
 /**
- * @package Hello_Dolly
- * @version 1.6
+ * @package Hello_Dolly WP API
+ * @version 1.0
  */
 /*
-Plugin Name: Hello Dolly
+Plugin Name: Hello Dolly WP API
 Plugin URI: http://wordpress.org/plugins/hello-dolly/
 Description: This is not just a plugin, it symbolizes the hope and enthusiasm of an entire generation summed up in two words sung most famously by Louis Armstrong: Hello, Dolly. When activated you will randomly see a lyric from <cite>Hello, Dolly</cite> in the upper right of your admin screen on every page.
 Author: Matt Mullenweg
@@ -12,7 +12,7 @@ Version: 1.6
 Author URI: http://ma.tt/
 */
 
-function hello_dolly_get_lyric() {
+function hello_dolly_get_lyric( $request  ) {
 	/** These are the lyrics to Hello Dolly */
 	$lyrics = "Hello, Dolly
 Well, hello, Dolly
@@ -46,18 +46,12 @@ Dolly'll never go away again";
 	// Here we split it into lines
 	$lyrics = explode( "\n", $lyrics );
 
+	if ( ! isset( $request['id'] ) ) {
+		return array_map( function( $line ) { return array( 'line' => $line ); }, $lyrics );
+	}
 	// And then randomly choose a line
-	return wptexturize( $lyrics[ mt_rand( 0, count( $lyrics ) - 1 ) ] );
+	return wptexturize( $lyrics[ (int) $request['id']  ] );
 }
-
-// This just echoes the chosen line, we'll position it later
-function hello_dolly() {
-	$chosen = hello_dolly_get_lyric();
-	echo "<p id='dolly'>$chosen</p>";
-}
-
-// Now we set that function up to execute when the admin_notices action is called
-add_action( 'admin_notices', 'hello_dolly' );
 
 // We need some CSS to position the paragraph
 function dolly_css() {
@@ -81,10 +75,21 @@ add_action( 'admin_head', 'dolly_css' );
 
 // register endpoint
 function dolly_rest_endpoint() {
-	register_rest_route( 'hellodolly/v1', '/lyric', array(
+	register_rest_route( 'wp/v2', '/hello', array(
 		'methods' => 'GET',
 		'callback' => 'hello_dolly_get_lyric',
-	)); 
+	));
+
+	register_rest_route( 'wp/v2', '/hello' . '/(?P<id>[\d]+)', array(
+		'methods' => 'GET',
+		'callback' => 'hello_dolly_get_lyric',
+	));
+}
+
+// Enqueue our JavaScript
+function dolly_enqueue_scripts() {
+	wp_enqueue_script( 'hellodolly', plugins_url( '/hello.js' , __FILE__ ), array( 'wp-api' ) );
 }
 
 add_action( 'rest_api_init', 'dolly_rest_endpoint' );
+add_action( 'admin_notices', 'dolly_enqueue_scripts' );
